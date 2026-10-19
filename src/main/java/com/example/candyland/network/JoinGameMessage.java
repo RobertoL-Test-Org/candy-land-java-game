@@ -8,11 +8,13 @@ public class JoinGameMessage extends GameMessage {
     
     private final String playerName;
     private final String gameRoomId;
+    private final String accessCode;
     
-    public JoinGameMessage(String playerName, String gameRoomId) {
+    public JoinGameMessage(String playerName, String gameRoomId, String accessCode) {
         super(MessageType.JOIN_GAME);
         this.playerName = playerName;
         this.gameRoomId = gameRoomId;
+        this.accessCode = accessCode;
     }
     
     public String getPlayerName() {
@@ -21,5 +23,9 @@ public class JoinGameMessage extends GameMessage {
     
     public String getGameRoomId() {
         return gameRoomId;
+    }
+    
+    public String getAccessCode() {
+        return accessCode;
     }
 }

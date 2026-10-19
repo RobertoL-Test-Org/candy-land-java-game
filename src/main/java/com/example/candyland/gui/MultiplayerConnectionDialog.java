@@ -14,6 +14,7 @@ public class MultiplayerConnectionDialog extends JDialog {
     private final JSpinner serverPortSpinner;
     private final JTextField playerNameField;
     private final JTextField roomIdField;
+    private final JPasswordField accessCodeField;
     private boolean confirmed;
     
     public MultiplayerConnectionDialog(Frame parent) {
@@ -24,6 +25,7 @@ public class MultiplayerConnectionDialog extends JDialog {
         serverPortSpinner = new JSpinner(new SpinnerNumberModel(8888, 1, 65535, 1));
         playerNameField = new JTextField(20);
         roomIdField = new JTextField("default", 20);
+        accessCodeField = new JPasswordField(20);
         confirmed = false;
         
         // Create main panel
@@ -77,6 +79,17 @@ public class MultiplayerConnectionDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
         formPanel.add(roomIdField, gbc);
+        
+        // Room password
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        formPanel.add(new JLabel("Room Password:"), gbc);
+        gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        formPanel.add(accessCodeField, gbc);
         
         mainPanel.add(formPanel, BorderLayout.CENTER);
         
@@ -141,6 +154,14 @@ public class MultiplayerConnectionDialog extends JDialog {
             return false;
         }
         
+        if (accessCodeField.getPassword().length == 0) {
+            JOptionPane.showMessageDialog(this,
+                "Please enter room password",
+                VALIDATION_ERROR,
+                JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
         return true;
     }
     
@@ -162,5 +183,9 @@ public class MultiplayerConnectionDialog extends JDialog {
     
     public String getRoomId() {
         return roomIdField.getText().trim();
+    }
+    
+    public String getAccessCode() {
+        return new String(accessCodeField.getPassword());
     }
 }
