@@ -17,8 +17,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.Hashtable;
 import java.util.Random;
 
@@ -40,14 +40,16 @@ public final class SecurityFlawSamples {
      * java:S3649 - SQL injection via string concatenation.
      */
     public static boolean playerExists(String playerName) throws Exception {
-        String query = "SELECT COUNT(*) FROM players WHERE name = '" + playerName + "'";
+        String query = "SELECT COUNT(*) FROM players WHERE name = ?";
         try (Connection connection = DriverManager.getConnection(
                 "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
-            resultSet.next();
-            int count = resultSet.getInt(1);
-            return count > 0;
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, playerName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                int count = resultSet.getInt(1);
+                return count > 0;
+            }
         }
     }
 
