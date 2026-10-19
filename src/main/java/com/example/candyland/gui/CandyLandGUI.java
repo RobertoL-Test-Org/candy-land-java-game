@@ -100,7 +100,7 @@ public class CandyLandGUI extends JFrame {
             game = new CandyLandGame();
             
             // Join the game
-            networkClient.joinGame(currentPlayerName, roomId);
+            networkClient.joinGame(currentPlayerName, roomId, connectionDialog.getServerPassword());
             
             JOptionPane.showMessageDialog(this,
                 "Connected to server! Waiting for other players...",
