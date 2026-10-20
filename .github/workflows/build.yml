@@ -37,4 +37,4 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=roberto-luzardo-sonarsource_candy-land-java-game_fec2f5d5-7417-4bcb-8940-72550543a459 -Dsonar.projectName='candy-land-java-game'
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=RobertoL-Test-Org_candy-land-java-game_29f765a2-09ac-4d96-bc99-a1f52c7d5f07 -Dsonar.projectName='candy-land-java-game'
