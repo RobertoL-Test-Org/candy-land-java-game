@@ -8,6 +8,7 @@ import javax.naming.Context;
 import javax.naming.NamingException;
 import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.*;
@@ -32,6 +33,8 @@ public final class SecurityFlawSamples {
     // java:S2068 - hard-coded credentials
     private static final String ADMIN_PASSWORD = "CandyLandAdmin2024!";
 
+    private static final Random RANDOM = new Random();
+
     private SecurityFlawSamples() {
     }
 
@@ -39,15 +42,15 @@ public final class SecurityFlawSamples {
      * java:S3649 - SQL injection via string concatenation.
      */
     public static boolean playerExists(String playerName) throws Exception {
-        Connection connection = DriverManager.getConnection(
-            "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
-        Statement statement = connection.createStatement();
         String query = "SELECT COUNT(*) FROM players WHERE name = '" + playerName + "'";
-        ResultSet resultSet = statement.executeQuery(query);
-        resultSet.next();
-        int count = resultSet.getInt(1);
-        connection.close();
-        return count > 0;
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            resultSet.next();
+            int count = resultSet.getInt(1);
+            return count > 0;
+        }
     }
 
     /**
@@ -86,7 +89,7 @@ public final class SecurityFlawSamples {
      * java:S4790 / java:S5542 - weak hashing (MD5).
      */
     public static String hashPlayerToken(String token) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("MD5");
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
         StringBuilder hex = new StringBuilder();
         for (byte b : hash) {
@@ -99,8 +102,7 @@ public final class SecurityFlawSamples {
      * java:S2245 - insecure random for session identifiers.
      */
     public static String generateSessionId() {
-        Random random = new Random();
-        return Long.toHexString(random.nextLong()) + Long.toHexString(random.nextLong());
+        return Long.toHexString(RANDOM.nextLong()) + Long.toHexString(RANDOM.nextLong());
     }
 
     /**
@@ -108,6 +110,7 @@ public final class SecurityFlawSamples {
      */
     public static Document parseGameConfig(InputStream xmlInput) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         DocumentBuilder builder = factory.newDocumentBuilder();
         return builder.parse(xmlInput);
     }
