@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -18,18 +20,34 @@ public class CandyLandServer {
     private static final Logger logger = LoggerFactory.getLogger(CandyLandServer.class);
     private static final int DEFAULT_PORT = 8888;
     private static final int MAX_PLAYERS_PER_GAME = 3;
+    private static final String SECRET_ENV = "CANDYLAND_SERVER_SECRET";
     
     private final int port;
+    private final byte[] sharedSecret;
     private final Map<String, GameRoom> gameRooms;
     private final ExecutorService executorService;
     private ServerSocket serverSocket;
     private volatile boolean running;
     
-    public CandyLandServer(int port) {
+    public CandyLandServer(int port, String sharedSecret) {
+        if (sharedSecret == null || sharedSecret.isBlank()) {
+            throw new IllegalArgumentException("A non-blank shared secret is required");
+        }
         this.port = port;
+        this.sharedSecret = sharedSecret.getBytes(StandardCharsets.UTF_8);
         this.gameRooms = new ConcurrentHashMap<>();
         this.executorService = Executors.newCachedThreadPool();
         this.running = false;
+    }
+    
+    /**
+     * Compares a client-supplied token against the expected secret in constant time.
+     */
+    static boolean isValidToken(byte[] expected, String supplied) {
+        if (supplied == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(expected, supplied.getBytes(StandardCharsets.UTF_8));
     }
     
     /**
@@ -92,6 +110,7 @@ public class CandyLandServer {
         private ObjectInputStream in;
         private GameRoom gameRoom;
         private String playerName;
+        private boolean authenticated = false;
         
         public ClientHandler(Socket socket) {
             this.socket = socket;
@@ -118,9 +137,18 @@ public class CandyLandServer {
         private void handleMessage(GameMessage message) throws IOException {
             switch (message.getType()) {
                 case JOIN_GAME:
+                    if (authenticated) {
+                        sendMessage(new ErrorMessage("Already joined", ErrorMessage.ErrorCode.INVALID_PLAYER));
+                        return;
+                    }
                     handleJoinGame((JoinGameMessage) message);
                     break;
                 case DRAW_CARD:
+                    if (!authenticated) {
+                        sendMessage(new ErrorMessage("Not authenticated", ErrorMessage.ErrorCode.INVALID_PLAYER));
+                        socket.close();
+                        return;
+                    }
                     handleDrawCard((DrawCardMessage) message);
                     break;
                 case DISCONNECT:
@@ -132,19 +160,33 @@ public class CandyLandServer {
         }
         
         private void handleJoinGame(JoinGameMessage message) throws IOException {
-            this.playerName = message.getPlayerName();
+            if (!isValidToken(sharedSecret, message.getAuthToken())) {
+                sendMessage(new ErrorMessage("Authentication failed", ErrorMessage.ErrorCode.INVALID_PLAYER));
+                socket.close();
+                return;
+            }
+            
+            String requestedName = message.getPlayerName();
             String roomId = message.getGameRoomId();
+            if (requestedName == null || requestedName.isBlank() || roomId == null || roomId.isBlank()) {
+                sendMessage(new ErrorMessage("Invalid player name or room", ErrorMessage.ErrorCode.INVALID_PLAYER));
+                return;
+            }
             
-            gameRoom = getOrCreateGameRoom(roomId);
+            GameRoom room = getOrCreateGameRoom(roomId);
             
-            if (gameRoom.getPlayerCount() >= MAX_PLAYERS_PER_GAME) {
+            if (room.getPlayerCount() >= MAX_PLAYERS_PER_GAME) {
                 sendMessage(new ErrorMessage("Game is full", ErrorMessage.ErrorCode.GAME_FULL));
                 socket.close();
                 return;
             }
             
-            gameRoom.addPlayer(playerName, this);
-            logger.info("Player {} joined room {}", playerName, roomId);
+            if (room.addPlayer(requestedName, this)) {
+                this.playerName = requestedName;
+                this.gameRoom = room;
+                this.authenticated = true;
+                logger.info("Player {} joined room {}", playerName, roomId);
+            }
         }
         
         private void handleDrawCard(DrawCardMessage message) throws IOException {
@@ -153,7 +195,7 @@ public class CandyLandServer {
                 return;
             }
             
-            gameRoom.processDrawCard(message.getPlayerName());
+            gameRoom.processDrawCard(this.playerName);
         }
         
         public void sendMessage(GameMessage message) throws IOException {
@@ -197,11 +239,11 @@ public class CandyLandServer {
             this.gameStarted = false;
         }
         
-        public synchronized void addPlayer(String playerName, ClientHandler handler) throws IOException {
+        public synchronized boolean addPlayer(String playerName, ClientHandler handler) throws IOException {
             if (players.containsKey(playerName)) {
                 handler.sendMessage(new ErrorMessage("Player name already taken", 
                     ErrorMessage.ErrorCode.INVALID_PLAYER));
-                return;
+                return false;
             }
             
             players.put(playerName, handler);
@@ -222,6 +264,7 @@ public class CandyLandServer {
                 logger.info("Game started in room {} with {} players", roomId, playerOrder.size());
                 broadcastMessage(createGameStateMessage());
             }
+            return true;
         }
         
         public synchronized void removePlayer(String playerName) {
@@ -343,7 +386,14 @@ public class CandyLandServer {
             }
         }
         
-        CandyLandServer server = new CandyLandServer(port);
+        String secret = System.getenv(SECRET_ENV);
+        if (secret == null || secret.isBlank()) {
+            logger.error("{} must be set to a non-blank shared secret", SECRET_ENV);
+            System.exit(1);
+            return;
+        }
+        
+        CandyLandServer server = new CandyLandServer(port, secret);
         
         // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
