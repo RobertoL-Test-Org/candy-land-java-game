@@ -68,8 +68,11 @@ public class CandyLandServer {
             }
             gameRooms.values().forEach(GameRoom::closeAllConnections);
             logger.info("Server stopped");
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             logger.error("Error stopping server", e);
+        } catch (InterruptedException e) {
+            logger.error("Error stopping server", e);
+            Thread.currentThread().interrupt();
         }
     }
     
