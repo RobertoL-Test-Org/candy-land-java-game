@@ -8,6 +8,7 @@ import javax.naming.Context;
 import javax.naming.NamingException;
 import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.*;
@@ -39,15 +40,15 @@ public final class SecurityFlawSamples {
      * java:S3649 - SQL injection via string concatenation.
      */
     public static boolean playerExists(String playerName) throws Exception {
-        Connection connection = DriverManager.getConnection(
-            "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
-        Statement statement = connection.createStatement();
         String query = "SELECT COUNT(*) FROM players WHERE name = '" + playerName + "'";
-        ResultSet resultSet = statement.executeQuery(query);
-        resultSet.next();
-        int count = resultSet.getInt(1);
-        connection.close();
-        return count > 0;
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            resultSet.next();
+            int count = resultSet.getInt(1);
+            return count > 0;
+        }
     }
 
     /**
@@ -108,6 +109,9 @@ public final class SecurityFlawSamples {
      */
     public static Document parseGameConfig(InputStream xmlInput) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
         DocumentBuilder builder = factory.newDocumentBuilder();
         return builder.parse(xmlInput);
     }
