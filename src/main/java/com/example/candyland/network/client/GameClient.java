@@ -65,8 +65,8 @@ public class GameClient {
     /**
      * Joins a game room.
      */
-    public void joinGame(String playerName, String gameRoomId) throws IOException {
-        sendMessage(new JoinGameMessage(playerName, gameRoomId));
+    public void joinGame(String playerName, String gameRoomId, String accessCode) throws IOException {
+        sendMessage(new JoinGameMessage(playerName, gameRoomId, accessCode));
     }
     
     /**

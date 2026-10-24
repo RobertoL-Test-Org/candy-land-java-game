@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -76,10 +79,10 @@ public class CandyLandServer {
     /**
      * Gets or creates a game room.
      */
-    private synchronized GameRoom getOrCreateGameRoom(String roomId) {
+    private synchronized GameRoom getOrCreateGameRoom(String roomId, String accessCode) {
         return gameRooms.computeIfAbsent(roomId, id -> {
             logger.info("Creating new game room: {}", id);
-            return new GameRoom(id);
+            return new GameRoom(id, accessCode);
         });
     }
     
@@ -132,19 +135,40 @@ public class CandyLandServer {
         }
         
         private void handleJoinGame(JoinGameMessage message) throws IOException {
-            this.playerName = message.getPlayerName();
+            String requestedName = message.getPlayerName();
             String roomId = message.getGameRoomId();
+            String accessCode = message.getAccessCode();
             
-            gameRoom = getOrCreateGameRoom(roomId);
+            if (isBlank(requestedName) || isBlank(roomId) || isBlank(accessCode)) {
+                sendJoinRejected();
+                return;
+            }
             
-            if (gameRoom.getPlayerCount() >= MAX_PLAYERS_PER_GAME) {
+            GameRoom room = getOrCreateGameRoom(roomId, accessCode);
+            
+            if (!room.isAccessCodeValid(accessCode)) {
+                sendJoinRejected();
+                return;
+            }
+            
+            if (room.getPlayerCount() >= MAX_PLAYERS_PER_GAME) {
                 sendMessage(new ErrorMessage("Game is full", ErrorMessage.ErrorCode.GAME_FULL));
                 socket.close();
                 return;
             }
             
-            gameRoom.addPlayer(playerName, this);
+            this.gameRoom = room;
+            this.playerName = requestedName;
+            room.addPlayer(playerName, this);
             logger.info("Player {} joined room {}", playerName, roomId);
+        }
+        
+        private boolean isBlank(String value) {
+            return value == null || value.trim().isEmpty();
+        }
+        
+        private void sendJoinRejected() throws IOException {
+            sendMessage(new ErrorMessage("Unable to join game room", ErrorMessage.ErrorCode.GAME_NOT_FOUND));
         }
         
         private void handleDrawCard(DrawCardMessage message) throws IOException {
@@ -187,14 +211,32 @@ public class CandyLandServer {
         private final List<String> playerOrder;
         private int currentPlayerIndex;
         private boolean gameStarted;
+        private final byte[] accessCodeHash;
         
-        public GameRoom(String roomId) {
+        public GameRoom(String roomId, String accessCode) {
             this.roomId = roomId;
+            this.accessCodeHash = hashAccessCode(accessCode);
             this.game = new CandyLandGame();
             this.players = new ConcurrentHashMap<>();
             this.playerOrder = new ArrayList<>();
             this.currentPlayerIndex = 0;
             this.gameStarted = false;
+        }
+        
+        private static byte[] hashAccessCode(String accessCode) {
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                return digest.digest(accessCode.getBytes(StandardCharsets.UTF_8));
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException("SHA-256 not available", e);
+            }
+        }
+        
+        public boolean isAccessCodeValid(String accessCode) {
+            if (accessCode == null) {
+                return false;
+            }
+            return MessageDigest.isEqual(accessCodeHash, hashAccessCode(accessCode));
         }
         
         public synchronized void addPlayer(String playerName, ClientHandler handler) throws IOException {

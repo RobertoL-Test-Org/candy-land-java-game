@@ -89,6 +89,7 @@ public class CandyLandGUI extends JFrame {
         int serverPort = connectionDialog.getServerPort();
         currentPlayerName = connectionDialog.getPlayerName();
         String roomId = connectionDialog.getRoomId();
+        String accessCode = connectionDialog.getAccessCode();
         
         try {
             // Create network client
@@ -100,7 +101,7 @@ public class CandyLandGUI extends JFrame {
             game = new CandyLandGame();
             
             // Join the game
-            networkClient.joinGame(currentPlayerName, roomId);
+            networkClient.joinGame(currentPlayerName, roomId, accessCode);
             
             JOptionPane.showMessageDialog(this,
                 "Connected to server! Waiting for other players...",
