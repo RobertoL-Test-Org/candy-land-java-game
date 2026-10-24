@@ -39,15 +39,15 @@ public final class SecurityFlawSamples {
      * java:S3649 - SQL injection via string concatenation.
      */
     public static boolean playerExists(String playerName) throws Exception {
-        Connection connection = DriverManager.getConnection(
-            "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
-        Statement statement = connection.createStatement();
         String query = "SELECT COUNT(*) FROM players WHERE name = '" + playerName + "'";
-        ResultSet resultSet = statement.executeQuery(query);
-        resultSet.next();
-        int count = resultSet.getInt(1);
-        connection.close();
-        return count > 0;
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:candyland;DB_CLOSE_DELAY=-1", "sa", ADMIN_PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            resultSet.next();
+            int count = resultSet.getInt(1);
+            return count > 0;
+        }
     }
 
     /**
