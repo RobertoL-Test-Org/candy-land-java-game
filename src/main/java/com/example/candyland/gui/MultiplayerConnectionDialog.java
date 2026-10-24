@@ -14,6 +14,7 @@ public class MultiplayerConnectionDialog extends JDialog {
     private final JSpinner serverPortSpinner;
     private final JTextField playerNameField;
     private final JTextField roomIdField;
+    private final JPasswordField serverPasswordField = new JPasswordField(20);
     private boolean confirmed;
     
     public MultiplayerConnectionDialog(Frame parent) {
@@ -78,6 +79,17 @@ public class MultiplayerConnectionDialog extends JDialog {
         gbc.weightx = 1.0;
         formPanel.add(roomIdField, gbc);
         
+        // Server password
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        formPanel.add(new JLabel("Server Password:"), gbc);
+        gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        formPanel.add(serverPasswordField, gbc);
+        
         mainPanel.add(formPanel, BorderLayout.CENTER);
         
         // Create button panel
@@ -141,6 +153,14 @@ public class MultiplayerConnectionDialog extends JDialog {
             return false;
         }
         
+        if (serverPasswordField.getPassword().length == 0) {
+            JOptionPane.showMessageDialog(this,
+                "Please enter server password",
+                VALIDATION_ERROR,
+                JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
         return true;
     }
     
@@ -162,5 +182,9 @@ public class MultiplayerConnectionDialog extends JDialog {
     
     public String getRoomId() {
         return roomIdField.getText().trim();
+    }
+    
+    public String getServerPassword() {
+        return new String(serverPasswordField.getPassword());
     }
 }
