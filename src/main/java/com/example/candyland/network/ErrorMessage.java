@@ -15,6 +15,7 @@ public class ErrorMessage extends GameMessage {
         CONNECTION_ERROR,
         INVALID_PLAYER,
         GAME_NOT_FOUND,
+        AUTHENTICATION_FAILED,
         UNKNOWN_ERROR
     }
     
