@@ -23,13 +23,27 @@ public class CandyLandGUI extends JFrame {
     private transient GameClient networkClient;
     private boolean isMultiplayer;
     private String currentPlayerName;
+    private transient Leaderboard leaderboard;
     
     /**
      * Creates and displays the Candy Land GUI.
      */
     public CandyLandGUI() {
+        openLeaderboard();
         // Show game mode selection
         showGameModeSelection();
+    }
+    
+    /**
+     * Opens the persistent leaderboard. The game still runs if it is unavailable.
+     */
+    private void openLeaderboard() {
+        try {
+            leaderboard = new Leaderboard(Leaderboard.defaultPath());
+        } catch (LeaderboardException | IllegalArgumentException e) {
+            logger.warn("Leaderboard unavailable: {}", e.getMessage());
+            leaderboard = null;
+        }
     }
     
     /**
@@ -181,6 +195,12 @@ public class CandyLandGUI extends JFrame {
         
         gameMenu.addSeparator();
         
+        JMenuItem leaderboardItem = new JMenuItem("Leaderboard");
+        leaderboardItem.addActionListener(e -> showLeaderboard(null));
+        gameMenu.add(leaderboardItem);
+        
+        gameMenu.addSeparator();
+        
         JMenuItem exitItem = new JMenuItem("Exit");
         exitItem.addActionListener(e -> {
             if (networkClient != null && networkClient.isConnected()) {
@@ -256,6 +276,30 @@ public class CandyLandGUI extends JFrame {
     }
     
     /**
+     * Shows the leaderboard dialog.
+     * 
+     * @param highlightName a player name to highlight, or null
+     */
+    public void showLeaderboard(String highlightName) {
+        if (leaderboard == null) {
+            JOptionPane.showMessageDialog(this,
+                "The leaderboard is unavailable. Check the log for details.",
+                "Leaderboard",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            new LeaderboardDialog(this, leaderboard.getRankings(), highlightName).setVisible(true);
+        } catch (LeaderboardException e) {
+            logger.error("Could not read leaderboard", e);
+            JOptionPane.showMessageDialog(this,
+                "Could not read the leaderboard: " + e.getMessage(),
+                "Leaderboard",
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
      * Shows the game rules dialog.
      */
     private void showGameRules() {
@@ -268,6 +312,11 @@ public class CandyLandGUI extends JFrame {
             4. Special character cards move directly to that character's location
             5. Players never move backward with character cards
             6. The first player to reach or pass the finish line wins!
+            
+            Leaderboard:
+            Local games with 2 or more players are recorded. Winning extends
+            your streak of consecutive wins; losing resets it. Your best
+            streak is kept. See Game > Leaderboard.
             
             Special Characters:
             - Plumpy (Position 8)
@@ -417,6 +466,15 @@ public class CandyLandGUI extends JFrame {
      */
     public GameClient getNetworkClient() {
         return networkClient;
+    }
+    
+    /**
+     * Gets the leaderboard.
+     * 
+     * @return the leaderboard, or null if it could not be opened
+     */
+    public Leaderboard getLeaderboard() {
+        return leaderboard;
     }
     
     /**
