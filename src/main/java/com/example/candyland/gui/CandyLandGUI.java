@@ -40,7 +40,7 @@ public class CandyLandGUI extends JFrame {
     private void openLeaderboard() {
         try {
             leaderboard = new Leaderboard(Leaderboard.defaultPath());
-        } catch (LeaderboardException e) {
+        } catch (LeaderboardException | IllegalArgumentException e) {
             logger.warn("Leaderboard unavailable: {}", e.getMessage());
             leaderboard = null;
         }
