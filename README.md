@@ -138,10 +138,12 @@ The SonarQube analysis checks for:
    ```
    At each turn press Enter to draw a card, `b` to show the board, `l` to show the leaderboard, or `q` to quit.
 
-   **Leaderboard:** the CLI keeps a persistent leaderboard of consecutive wins per player name in
-   `~/.candyland/leaderboard.properties`. Winning a game extends your streak and losing resets it to zero;
-   your best streak is kept. Only games with 2 or more players count. Use a different file with
-   `-Dexec.args="--leaderboard path/to/file.properties"`.
+   **Leaderboard:** the CLI and the GUI share a persistent leaderboard of consecutive wins per player
+   name, stored in an embedded H2 database at `~/.candyland/leaderboard.mv.db`. Winning a game extends
+   your streak and losing resets it to zero; your best streak is kept. Only local games with 2 or more
+   players count. In the CLI press `l` during a game; in the GUI use **Game > Leaderboard** or the
+   **View Leaderboard** button after a win. The CLI can use a different database with
+   `-Dexec.args="--leaderboard path/to/leaderboard"`.
 
 5. **Clean and rebuild:**
    ```bash

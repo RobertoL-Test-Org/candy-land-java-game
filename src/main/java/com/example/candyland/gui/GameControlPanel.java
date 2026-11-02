@@ -9,6 +9,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Panel containing game controls and information display.
@@ -152,10 +154,11 @@ public class GameControlPanel extends JPanel {
             game.setWinner(currentPlayer);
             addLogMessage("\n🎉 " + currentPlayer.getName() + " WINS! 🎉\n");
             drawCardButton.setEnabled(false);
-            JOptionPane.showMessageDialog(this, 
-                currentPlayer.getName() + " wins the game!", 
-                "Game Over", 
-                JOptionPane.INFORMATION_MESSAGE);
+            String streakMessage = recordResult(currentPlayer);
+            if (streakMessage != null) {
+                addLogMessage(streakMessage);
+            }
+            showGameOver(currentPlayer, streakMessage);
         } else {
             game.nextPlayer();
         }
@@ -165,6 +168,56 @@ public class GameControlPanel extends JPanel {
         boardPanel.updatePlayers(game.getPlayers());
     }
     
+    /**
+     * Records a finished local game on the leaderboard.
+     * Solo games are not recorded, since a single player always wins.
+     *
+     * @param winner the winning player
+     * @return a message describing the winner's streak, or null if nothing was recorded
+     */
+    private String recordResult(Player winner) {
+        Leaderboard leaderboard = parentGUI != null ? parentGUI.getLeaderboard() : null;
+        if (leaderboard == null) {
+            return null;
+        }
+        if (game.getPlayers().size() < 2) {
+            return "(Solo games don't count toward the leaderboard.)";
+        }
+        List<String> names = new ArrayList<>();
+        for (Player player : game.getPlayers()) {
+            names.add(player.getName());
+        }
+        try {
+            leaderboard.recordGame(names, winner.getName());
+            int streak = leaderboard.getEntry(winner.getName()).currentStreak();
+            return winner.getName() + " is on a " + streak + "-game win streak!";
+        } catch (LeaderboardException ex) {
+            logger.error("Could not record game result", ex);
+            return "Could not save the result to the leaderboard: " + ex.getMessage();
+        }
+    }
+
+    /**
+     * Shows the game over dialog, offering to open the leaderboard.
+     *
+     * @param winner the winning player
+     * @param streakMessage the leaderboard message, or null
+     */
+    private void showGameOver(Player winner, String streakMessage) {
+        String message = winner.getName() + " wins the game!"
+            + (streakMessage != null ? "\n" + streakMessage : "");
+        if (parentGUI == null || parentGUI.getLeaderboard() == null) {
+            JOptionPane.showMessageDialog(this, message, "Game Over", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        String[] options = {"View Leaderboard", "OK"};
+        int choice = JOptionPane.showOptionDialog(this, message, "Game Over",
+            JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+        if (choice == 0) {
+            parentGUI.showLeaderboard(winner.getName());
+        }
+    }
+
     /**
      * Adds a message to the game log.
      * 

@@ -9,7 +9,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -21,7 +20,7 @@ class CandyLandCLITest {
     Path tempDir;
 
     private Path leaderboardFile() {
-        return tempDir.resolve("leaderboard.properties");
+        return tempDir.resolve("leaderboard");
     }
 
     private String run(String input) {
@@ -65,7 +64,7 @@ class CandyLandCLITest {
     void testSoloGameIsNotRecorded() {
         String output = run("1\nSolo\n" + "\n".repeat(500) + "n\n");
         assertTrue(output.contains("Solo games don't count toward the leaderboard."));
-        assertFalse(Files.exists(leaderboardFile()));
+        assertTrue(new Leaderboard(leaderboardFile()).isEmpty());
     }
 
     @Test

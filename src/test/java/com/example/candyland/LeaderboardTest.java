@@ -4,8 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -18,7 +16,7 @@ class LeaderboardTest {
     Path tempDir;
 
     private Path file() {
-        return tempDir.resolve("nested").resolve("leaderboard.properties");
+        return tempDir.resolve("nested").resolve("leaderboard");
     }
 
     @Test
@@ -103,12 +101,38 @@ class LeaderboardTest {
     }
 
     @Test
-    void testMalformedLinesAreSkipped() throws IOException {
-        Files.createDirectories(file().getParent());
-        Files.writeString(file(), "Alice=2,5\nBob=oops\n", StandardCharsets.UTF_8);
+    void testDatabaseFileIsCreated() {
+        new Leaderboard(file());
+        assertTrue(Files.exists(tempDir.resolve("nested").resolve("leaderboard.mv.db")));
+    }
 
+    @Test
+    void testDatabaseSuffixIsOptional() {
+        new Leaderboard(file()).recordGame(List.of("Alice", "Bob"), "Alice");
+        Leaderboard withSuffix = new Leaderboard(tempDir.resolve("nested").resolve("leaderboard.mv.db"));
+        assertEquals(1, withSuffix.getEntry("Alice").currentStreak());
+    }
+
+    @Test
+    void testInstancesSharingFileSeeEachOthersWrites() {
+        Leaderboard cli = new Leaderboard(file());
+        Leaderboard gui = new Leaderboard(file());
+        cli.recordGame(List.of("Alice", "Bob"), "Alice");
+        gui.recordGame(List.of("Alice", "Bob"), "Alice");
+        assertEquals(2, cli.getEntry("Alice").currentStreak());
+    }
+
+    @Test
+    void testPathWithSemicolonIsRejected() {
+        Path bad = tempDir.resolve("evil;INIT=RUNSCRIPT FROM 'x'");
+        assertThrows(IllegalArgumentException.class, () -> new Leaderboard(bad));
+    }
+
+    @Test
+    void testLongNamesAreStored() {
+        String longName = "x".repeat(500);
         Leaderboard leaderboard = new Leaderboard(file());
-        assertEquals(new Leaderboard.Entry("Alice", 2, 5), leaderboard.getEntry("Alice"));
-        assertNull(leaderboard.getEntry("Bob"));
+        leaderboard.recordGame(List.of(longName, "Bob"), longName);
+        assertEquals(1, leaderboard.getEntry(longName).currentStreak());
     }
 }

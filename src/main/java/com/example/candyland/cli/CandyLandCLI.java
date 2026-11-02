@@ -5,6 +5,7 @@ import com.example.candyland.CandyLandGame;
 import com.example.candyland.Card;
 import com.example.candyland.Color;
 import com.example.candyland.Leaderboard;
+import com.example.candyland.LeaderboardException;
 import com.example.candyland.Player;
 
 import java.io.BufferedReader;
@@ -63,7 +64,7 @@ public class CandyLandCLI {
      */
     public void run() {
         printBanner();
-        if (!leaderboard.isEmpty()) {
+        if (hasRecords()) {
             printLeaderboard();
         }
         boolean playAgain = true;
@@ -76,6 +77,15 @@ public class CandyLandCLI {
             playAgain = finished && askYesNo("Play again? (y/n): ");
         }
         out.println("Thanks for playing Candy Land!");
+    }
+
+    private boolean hasRecords() {
+        try {
+            return !leaderboard.isEmpty();
+        } catch (LeaderboardException e) {
+            out.println("Warning: " + e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -152,13 +162,12 @@ public class CandyLandCLI {
         }
         try {
             leaderboard.recordGame(names, game.getWinner().getName());
-        } catch (UncheckedIOException e) {
-            out.println("Warning: " + e.getMessage());
-        }
-        Leaderboard.Entry entry = leaderboard.getEntry(game.getWinner().getName());
-        if (entry != null) {
+            Leaderboard.Entry entry = leaderboard.getEntry(game.getWinner().getName());
             out.println(game.getWinner().getName() + " is on a " + entry.currentStreak()
                 + "-game win streak!");
+        } catch (LeaderboardException e) {
+            out.println("Warning: " + e.getMessage());
+            return;
         }
         out.println();
         printLeaderboard();
@@ -169,7 +178,14 @@ public class CandyLandCLI {
      */
     void printLeaderboard() {
         out.println(bold("=== Leaderboard (consecutive wins) ==="));
-        List<Leaderboard.Entry> rankings = leaderboard.getRankings();
+        List<Leaderboard.Entry> rankings;
+        try {
+            rankings = leaderboard.getRankings();
+        } catch (LeaderboardException e) {
+            out.println("  Warning: " + e.getMessage());
+            out.println();
+            return;
+        }
         if (rankings.isEmpty()) {
             out.println("  No games recorded yet.");
         } else {
@@ -382,6 +398,14 @@ public class CandyLandCLI {
                 leaderboardFile = Paths.get(args[++i]);
             }
         }
-        new CandyLandCLI(System.in, System.out, color, new Leaderboard(leaderboardFile)).run();
+        Leaderboard leaderboard;
+        try {
+            leaderboard = new Leaderboard(leaderboardFile);
+        } catch (LeaderboardException | IllegalArgumentException e) {
+            System.err.println("Could not open the leaderboard: " + e.getMessage());
+            System.exit(1);
+            return;
+        }
+        new CandyLandCLI(System.in, System.out, color, leaderboard).run();
     }
 }
