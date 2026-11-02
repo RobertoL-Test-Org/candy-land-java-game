@@ -14,12 +14,12 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Hashtable;
-import java.util.Random;
 
 /**
  * Intentional security anti-patterns for SonarQube demonstration.
@@ -99,7 +99,7 @@ public final class SecurityFlawSamples {
      * java:S2245 - insecure random for session identifiers.
      */
     public static String generateSessionId() {
-        Random random = new Random();
+        SecureRandom random = new SecureRandom();
         return Long.toHexString(random.nextLong()) + Long.toHexString(random.nextLong());
     }
 
