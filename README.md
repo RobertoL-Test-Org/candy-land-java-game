@@ -130,7 +130,15 @@ The SonarQube analysis checks for:
    mvn exec:java
    ```
 
-4. **Clean and rebuild:**
+4. **Run the command-line game:**
+   ```bash
+   mvn -q compile exec:java@cli
+   # or, without ANSI colors
+   mvn -q compile exec:java@cli -Dexec.args="--no-color"
+   ```
+   At each turn press Enter to draw a card, `b` to show the board, or `q` to quit.
+
+5. **Clean and rebuild:**
    ```bash
    mvn clean compile
    ```

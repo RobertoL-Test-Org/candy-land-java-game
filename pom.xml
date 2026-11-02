@@ -83,6 +83,15 @@
                 <configuration>
                     <mainClass>com.example.candyland.gui.CandyLandGUI</mainClass>
                 </configuration>
+                <executions>
+                    <!-- Command-line version: mvn -q compile exec:java@cli -->
+                    <execution>
+                        <id>cli</id>
+                        <configuration>
+                            <mainClass>com.example.candyland.cli.CandyLandCLI</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             
             <!-- JaCoCo plugin for code coverage -->
