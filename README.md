@@ -136,7 +136,12 @@ The SonarQube analysis checks for:
    # or, without ANSI colors
    mvn -q compile exec:java@cli -Dexec.args="--no-color"
    ```
-   At each turn press Enter to draw a card, `b` to show the board, or `q` to quit.
+   At each turn press Enter to draw a card, `b` to show the board, `l` to show the leaderboard, or `q` to quit.
+
+   **Leaderboard:** the CLI keeps a persistent leaderboard of consecutive wins per player name in
+   `~/.candyland/leaderboard.properties`. Winning a game extends your streak and losing resets it to zero;
+   your best streak is kept. Only games with 2 or more players count. Use a different file with
+   `-Dexec.args="--leaderboard path/to/file.properties"`.
 
 5. **Clean and rebuild:**
    ```bash

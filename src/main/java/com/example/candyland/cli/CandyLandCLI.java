@@ -4,6 +4,7 @@ import com.example.candyland.Board;
 import com.example.candyland.CandyLandGame;
 import com.example.candyland.Card;
 import com.example.candyland.Color;
+import com.example.candyland.Leaderboard;
 import com.example.candyland.Player;
 
 import java.io.BufferedReader;
@@ -13,6 +14,9 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,6 +41,7 @@ public class CandyLandCLI {
     private final BufferedReader in;
     private final PrintStream out;
     private final boolean useColor;
+    private final Leaderboard leaderboard;
 
     /**
      * Creates a new CLI bound to the given streams.
@@ -44,11 +49,13 @@ public class CandyLandCLI {
      * @param in the input stream to read commands from
      * @param out the output stream to write to
      * @param useColor whether to emit ANSI color codes
+     * @param leaderboard the leaderboard that records win streaks
      */
-    public CandyLandCLI(InputStream in, PrintStream out, boolean useColor) {
+    public CandyLandCLI(InputStream in, PrintStream out, boolean useColor, Leaderboard leaderboard) {
         this.in = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
         this.out = out;
         this.useColor = useColor;
+        this.leaderboard = leaderboard;
     }
 
     /**
@@ -56,6 +63,9 @@ public class CandyLandCLI {
      */
     public void run() {
         printBanner();
+        if (!leaderboard.isEmpty()) {
+            printLeaderboard();
+        }
         boolean playAgain = true;
         while (playAgain) {
             CandyLandGame game = setupGame();
@@ -100,7 +110,8 @@ public class CandyLandCLI {
         printBoard(game);
         while (game.getWinner() == null) {
             Player current = game.getCurrentPlayer();
-            String command = prompt(styleFor(game, current) + "'s turn - [Enter] draw, [b] board, [q] quit: ");
+            String command = prompt(styleFor(game, current)
+                + "'s turn - [Enter] draw, [b] board, [l] leaderboard, [q] quit: ");
             if (command == null || command.trim().equalsIgnoreCase("q")) {
                 out.println("Game abandoned.");
                 return false;
@@ -109,12 +120,66 @@ public class CandyLandCLI {
                 printBoard(game);
                 continue;
             }
+            if (command.trim().equalsIgnoreCase("l")) {
+                printLeaderboard();
+                continue;
+            }
             takeTurn(game, current);
         }
         out.println();
         printBoard(game);
         out.println(bold("*** " + game.getWinner().getName() + " reaches King Kandy's Castle and wins! ***"));
+        recordResult(game);
         return true;
+    }
+
+    /**
+     * Records a finished game on the leaderboard and prints the standings.
+     * Solo games are not recorded, since a single player always wins.
+     *
+     * @param game the finished game
+     */
+    void recordResult(CandyLandGame game) {
+        List<Player> players = game.getPlayers();
+        if (players.size() < 2) {
+            out.println("(Solo games don't count toward the leaderboard.)");
+            out.println();
+            return;
+        }
+        List<String> names = new ArrayList<>();
+        for (Player player : players) {
+            names.add(player.getName());
+        }
+        try {
+            leaderboard.recordGame(names, game.getWinner().getName());
+        } catch (UncheckedIOException e) {
+            out.println("Warning: " + e.getMessage());
+        }
+        Leaderboard.Entry entry = leaderboard.getEntry(game.getWinner().getName());
+        if (entry != null) {
+            out.println(game.getWinner().getName() + " is on a " + entry.currentStreak()
+                + "-game win streak!");
+        }
+        out.println();
+        printLeaderboard();
+    }
+
+    /**
+     * Prints the leaderboard ranked by best win streak.
+     */
+    void printLeaderboard() {
+        out.println(bold("=== Leaderboard (consecutive wins) ==="));
+        List<Leaderboard.Entry> rankings = leaderboard.getRankings();
+        if (rankings.isEmpty()) {
+            out.println("  No games recorded yet.");
+        } else {
+            out.printf("  %-4s %-20s %7s %7s%n", "Rank", "Player", "Current", "Best");
+            for (int i = 0; i < rankings.size(); i++) {
+                Leaderboard.Entry entry = rankings.get(i);
+                out.printf("  %-4d %-20s %7d %7d%n", i + 1, entry.name(), entry.currentStreak(), entry.bestStreak());
+            }
+        }
+        out.println();
     }
 
     /**
@@ -302,17 +367,21 @@ public class CandyLandCLI {
     /**
      * Entry point for the command-line version of the game.
      *
-     * @param args pass {@code --no-color} to disable ANSI colors
+     * @param args pass {@code --no-color} to disable ANSI colors, or
+     *             {@code --leaderboard <file>} to use a different leaderboard file
      */
     public static void main(String[] args) {
         boolean color = System.console() != null && System.getenv("NO_COLOR") == null;
-        for (String arg : args) {
-            if ("--no-color".equals(arg)) {
+        Path leaderboardFile = Leaderboard.defaultPath();
+        for (int i = 0; i < args.length; i++) {
+            if ("--no-color".equals(args[i])) {
                 color = false;
-            } else if ("--color".equals(arg)) {
+            } else if ("--color".equals(args[i])) {
                 color = true;
+            } else if ("--leaderboard".equals(args[i]) && i + 1 < args.length) {
+                leaderboardFile = Paths.get(args[++i]);
             }
         }
-        new CandyLandCLI(System.in, System.out, color).run();
+        new CandyLandCLI(System.in, System.out, color, new Leaderboard(leaderboardFile)).run();
     }
 }
