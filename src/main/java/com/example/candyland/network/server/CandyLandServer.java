@@ -225,8 +225,20 @@ public class CandyLandServer {
         }
         
         public synchronized void removePlayer(String playerName) {
+            int removedIndex = playerOrder.indexOf(playerName);
             players.remove(playerName);
-            playerOrder.remove(playerName);
+            if (removedIndex >= 0) {
+                playerOrder.remove(removedIndex);
+                if (removedIndex < currentPlayerIndex) {
+                    currentPlayerIndex--;
+                }
+            }
+            if (currentPlayerIndex >= playerOrder.size()) {
+                currentPlayerIndex = 0;
+            }
+            if (playerOrder.size() < 2) {
+                gameStarted = false;
+            }
             
             if (players.isEmpty()) {
                 logger.info("Room {} is empty, cleaning up", roomId);
@@ -271,7 +283,7 @@ public class CandyLandServer {
                 gameStarted = false;
             } else {
                 // Move to next player
-                currentPlayerIndex = (currentPlayerIndex + 1) % playerOrder.size();
+                currentPlayerIndex = playerOrder.isEmpty() ? 0 : (currentPlayerIndex + 1) % playerOrder.size();
                 broadcastMessage(createGameStateMessage());
             }
         }
@@ -316,7 +328,10 @@ public class CandyLandServer {
         }
         
         private String getCurrentPlayerName() {
-            return playerOrder.isEmpty() ? null : playerOrder.get(currentPlayerIndex);
+            if (currentPlayerIndex < 0 || currentPlayerIndex >= playerOrder.size()) {
+                return null;
+            }
+            return playerOrder.get(currentPlayerIndex);
         }
         
         public int getPlayerCount() {
