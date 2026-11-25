@@ -226,10 +226,27 @@ public class CandyLandServer {
         
         public synchronized void removePlayer(String playerName) {
             players.remove(playerName);
-            playerOrder.remove(playerName);
+            int removedIndex = playerOrder.indexOf(playerName);
+            if (removedIndex >= 0) {
+                playerOrder.remove(removedIndex);
+                if (removedIndex < currentPlayerIndex) {
+                    currentPlayerIndex--;
+                } else if (currentPlayerIndex >= playerOrder.size()) {
+                    currentPlayerIndex = 0;
+                }
+            }
+            
+            if (playerOrder.size() < 2) {
+                gameStarted = false;
+            }
+            if (playerOrder.isEmpty()) {
+                currentPlayerIndex = 0;
+            }
             
             if (players.isEmpty()) {
                 logger.info("Room {} is empty, cleaning up", roomId);
+            } else if (gameStarted) {
+                broadcastMessage(createGameStateMessage());
             }
         }
         
@@ -271,7 +288,12 @@ public class CandyLandServer {
                 gameStarted = false;
             } else {
                 // Move to next player
-                currentPlayerIndex = (currentPlayerIndex + 1) % playerOrder.size();
+                if (playerOrder.isEmpty()) {
+                    currentPlayerIndex = 0;
+                    gameStarted = false;
+                } else {
+                    currentPlayerIndex = (currentPlayerIndex + 1) % playerOrder.size();
+                }
                 broadcastMessage(createGameStateMessage());
             }
         }
@@ -316,7 +338,10 @@ public class CandyLandServer {
         }
         
         private String getCurrentPlayerName() {
-            return playerOrder.isEmpty() ? null : playerOrder.get(currentPlayerIndex);
+            if (currentPlayerIndex < 0 || currentPlayerIndex >= playerOrder.size()) {
+                return null;
+            }
+            return playerOrder.get(currentPlayerIndex);
         }
         
         public int getPlayerCount() {
